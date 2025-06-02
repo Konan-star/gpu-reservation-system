@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { GpuReservationSystemStack } from '../lib/gpu-reservation-system-stack';
+import { GpuReservationSystemStack } from '../lib/gpu-reservation-system';
 
 const app = new cdk.App();
 new GpuReservationSystemStack(app, 'GpuReservationSystemStack', {
