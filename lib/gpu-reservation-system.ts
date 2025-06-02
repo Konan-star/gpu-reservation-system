@@ -200,7 +200,7 @@ export class GpuReservationSystemStack extends cdk.Stack {
     });
 
     const apiResource = api.root.addResource('api');
-    apiResource.addMethod('POST', new apigateway.LambdaIntegration(apiProxyFunction), {
+    apiResource.addMethod('POST', new apigateway.LambdaIntegration(ApiProxyFunction), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
