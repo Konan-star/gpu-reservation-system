@@ -103,16 +103,84 @@ function MainApplication({ signOut, user }) {
     setMessages([]);
   };
 
+  // 予約一覧取得関数
+  const fetchReservations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const session = await Auth.currentSession();
+      const idToken = session.getIdToken().getJwtToken();
+      const response = await axios.post(config.apiEndpoint, {
+        action: 'list'
+      }, {
+        headers: {
+          'Authorization': idToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.data.success) {
+        setReservations(response.data.reservations);
+      } else {
+        setError('予約一覧の取得に失敗しました');
+      }
+    } catch (err) {
+      setError('予約一覧の取得に失敗しました: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // need_confirm予約の承諾/異議あり
+  const handleConfirmReject = async (reservationId, decision) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const session = await Auth.currentSession();
+      const idToken = session.getIdToken().getJwtToken();
+      await axios.post(config.apiEndpoint, {
+        action: 'confirm_reject',
+        reservationId,
+        decision, // 'accept' or 'dispute'
+      }, {
+        headers: {
+          'Authorization': idToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      // 成功したら予約一覧を再取得
+      await fetchReservations();
+    } catch (err) {
+      setError('操作に失敗しました: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 予約一覧画面表示時に自動取得
+  useEffect(() => {
+    if (view === 'list') {
+      fetchReservations();
+    }
+  }, [view]);
+
   return (
     <div className="App">
       <header className="App-header">
         <h1>GPU予約システム</h1>
         <nav className="app-nav">
-          {/* setView はビューを切り替えるための関数と仮定 */}
-          <button onClick={() => setView('create')}>予約作成</button>
-          <button onClick={() => setView('list')}>予約一覧</button>
-          {/* userRole が 'admin' の場合のみ表示するなどの制御を追加 */}
-          {/* <button onClick={() => setView('admin')}>管理画面</button> */}
+          <button
+            className={view === 'create' ? 'active' : ''}
+            onClick={() => setView('create')}
+          >
+            予約作成
+          </button>
+          <button
+            className={view === 'list' ? 'active' : ''}
+            onClick={() => setView('list')}
+          >
+            予約一覧
+          </button>
+          {/* 管理者用タブも将来的に追加可能 */}
         </nav>
         <div className="header-buttons">
           {/* 「会話をクリア」は予約リクエストの入力履歴クリアなどに変更可能 */}
@@ -126,75 +194,92 @@ function MainApplication({ signOut, user }) {
       </header>
 
       {/* ビューに応じたメインコンテンツの表示 */}
-      {view === 'create' && (
-        <main className="reservation-create-container"> {/* CSSクラス名を変更 */}
-          <div className="messages-container">
-            {messages.length === 0 ? (
-              <div className="welcome-message">
-                <h2>GPUサーバーを予約します</h2>
-                <p>例: 「明日の午後2時から4時間、GPU Aを学習で使いたいです」</p>
-              </div>
-            ) : (
-              messages.map((msg, index) => (
-                <div key={index} className={`message ${msg.role}`}>
-                  <div className="message-content">
-                    {/* content が文字列でない場合のエラーを防ぐため、toString() を追加 */}
-                    {String(msg.content).split('\n').map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
-                  </div>
+      <main>
+        {view === 'create' && (
+          <div className="reservation-create-container">
+            <div className="messages-container">
+              {messages.length === 0 ? (
+                <div className="welcome-message">
+                  <h2>GPUサーバーを予約します</h2>
+                  <p>例: 「明日の午後2時から4時間、GPU Aを学習で使いたいです」</p>
                 </div>
-              ))
-            )}
-            {loading && (
-              <div className="message assistant loading">
-                <div className="typing-indicator"><span></span><span></span><span></span></div>
-              </div>
-            )}
-            {error && <div className="error-message">{error}</div>}
-            <div ref={messagesEndRef} />
+              ) : (
+                messages.map((msg, index) => (
+                  <div key={index} className={`message ${msg.role}`}>
+                    <div className="message-content">
+                      {/* content が文字列でない場合のエラーを防ぐため、toString() を追加 */}
+                      {String(msg.content).split('\n').map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+              {loading && (
+                <div className="message assistant loading">
+                  <div className="typing-indicator"><span></span><span></span><span></span></div>
+                </div>
+              )}
+              {error && <div className="error-message">{error}</div>}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form onSubmit={handleSubmit} className="input-form">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="予約内容を自然言語で入力..."
+                disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e); // handleSubmit は action: 'reserve_gpu_from_nlp' を送信するように改修
+                  }
+                }}
+              />
+              <button type="submit" disabled={loading || !input.trim()}>
+                予約リクエスト送信
+              </button>
+            </form>
           </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="input-form">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="予約内容を自然言語で入力..."
-              disabled={loading}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e); // handleSubmit は action: 'reserve_gpu_from_nlp' を送信するように改修
-                }
-              }}
-            />
-            <button type="submit" disabled={loading || !input.trim()}>
-              予約リクエスト送信
-            </button>
-          </form>
-        </main>
-      )}
-
-      {view === 'list' && (
-        <main className="reservation-list-container">
-          <h2>あなたの予約一覧</h2>
-          {myReservations.length === 0 ? (
-            <p>現在、予約はありません。</p>
-          ) : (
-            <ul className="reservations-list">
-              {myReservations.map(reservation => (
-                <li key={reservation.id} className={`reservation-item status-${reservation.status}`}>
-                  <div className="reservation-details">{reservation.details}</div>
-                  <div className="reservation-status">ステータス: {reservation.status}</div>
-                  {/* 予約内容に応じてキャンセルボタンなどを追加 */}
-                  {/* <button onClick={() => handleCancelReservation(reservation.id)}>キャンセル</button> */}
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* 必要に応じて予約取得中のローディング表示やエラー表示 */}
-        </main>
-      )}
+        {view === 'list' && (
+          <div className="reservation-list-container">
+            <h2>あなたの予約一覧</h2>
+            {loading && <div>読み込み中...</div>}
+            {error && <div className="error-message">{error}</div>}
+            {reservations.length === 0 ? (
+              <p>現在、予約はありません。</p>
+            ) : (
+              <ul className="reservations-list">
+                {reservations.map(reservation => (
+                  <li key={reservation.reservationId || reservation.id} className={`reservation-item status-${reservation.status}`}>
+                    <div className="reservation-details">{reservation.details}</div>
+                    <div className="reservation-status">ステータス: {reservation.status}</div>
+                    {reservation.status === 'need_confirm' && (
+                      <div className="confirm-actions">
+                        <button
+                          onClick={() => handleConfirmReject(reservation.reservationId || reservation.id, 'accept')}
+                          disabled={loading}
+                        >
+                          承諾（キャンセルする）
+                        </button>
+                        <button
+                          onClick={() => handleConfirmReject(reservation.reservationId || reservation.id, 'dispute')}
+                          disabled={loading}
+                        >
+                          異議あり
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </main>
 
       {/* {view === 'admin' && (
         <main className="admin-dashboard-container">
@@ -215,7 +300,7 @@ function App() {
   return (
     <Authenticator>
       {({ signOut, user }) => (
-        <ChatInterface signOut={signOut} user={user} />
+        <MainApplication signOut={signOut} user={user} />
       )}
     </Authenticator>
   );
