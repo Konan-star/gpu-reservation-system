@@ -80,7 +80,7 @@ export class GpuReservationSystemStack extends cdk.Stack {
       }),
     });
     // DynamoDB
-    this.reservationsTable = new dynamodb.Table(this, 'ReservationsTable', {
+    const reservationsTable = new dynamodb.Table(this, 'ReservationsTable', {
       tableName: 'GpuReservations',
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING }, // 例: CognitoユーザーID
       sortKey: { name: 'reservationId', type: dynamodb.AttributeType.STRING }, // 予約ID
@@ -88,7 +88,7 @@ export class GpuReservationSystemStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // 開発用。本番ではRETAINを検討
     });
 
-    this.serversTable = new dynamodb.Table(this, 'ServersConfigTable', {
+    const serversTable = new dynamodb.Table(this, 'ServersConfigTable', {
       tableName: 'GpuServerConfigs',
       partitionKey: { name: 'serverId', type: dynamodb.AttributeType.STRING }, // 例: 'gpu-type-a', 'gpu-type-b'
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -178,9 +178,9 @@ export class GpuReservationSystemStack extends cdk.Stack {
     });
 
     // 明示的な依存関係を追加
-    const cfnChatFunction = chatFunction.node.defaultChild as lambda.CfnFunction;
+    const cfnApiProxyFunction = ApiProxyFunction.node.defaultChild as lambda.CfnFunction;
     const cfnLambdaRole = lambdaRole.node.defaultChild as iam.CfnRole;
-    cfnChatFunction.addDependsOn(cfnLambdaRole);
+    cfnApiProxyFunction.addDependsOn(cfnLambdaRole);
 
     // API Gateway with Cognito Authorizer
     const api = new apigateway.RestApi(this, 'GpuReservationApi', {
@@ -468,11 +468,11 @@ export class GpuReservationSystemStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'ReservationsTableName', {
-      value: this.reservationsTable.tableName 
+      value: reservationsTable.tableName 
     }); 
     
     new cdk.CfnOutput(this, 'ServersConfigTableName', { 
-      value: this.serversTable.tableName 
+      value: serversTable.tableName 
     });
  
   }
