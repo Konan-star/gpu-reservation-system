@@ -79,21 +79,6 @@ export class GpuReservationSystemStack extends cdk.Stack {
         fullname: true,
       }),
     });
-    // DynamoDB
-    const reservationsTable = new dynamodb.Table(this, 'ReservationsTable', {
-      tableName: 'GpuReservations',
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING }, // 例: CognitoユーザーID
-      sortKey: { name: 'reservationId', type: dynamodb.AttributeType.STRING }, // 予約ID
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // 開発用。本番ではRETAINを検討
-    });
-
-    const serversTable = new dynamodb.Table(this, 'ServersConfigTable', {
-      tableName: 'GpuServerConfigs',
-      partitionKey: { name: 'serverId', type: dynamodb.AttributeType.STRING }, // 例: 'gpu-type-a', 'gpu-type-b'
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
     
     // S3バケットの作成
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
@@ -467,12 +452,8 @@ export class GpuReservationSystemStack extends cdk.Stack {
       description: 'The ID of the Cognito User Pool Client',
     });
 
-    new cdk.CfnOutput(this, 'ReservationsTableName', {
-      value: reservationsTable.tableName 
-    }); 
-    
-    new cdk.CfnOutput(this, 'ServersConfigTableName', { 
-      value: serversTable.tableName 
+    const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
+    const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
     });
  
   }
