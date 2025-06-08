@@ -53,6 +53,43 @@ def ai_priority_decision(requester_details, existing_details):
     else:
         return 'existing'
 
+def extract_params_from_nlp(nlp_text):
+    """
+    Bedrock Nova Liteで自然言語から予約パラメータを抽出
+    """
+    prompt = f"""
+次の日本語の予約リクエストから、予約開始時刻（ISO8601）、終了時刻（ISO8601）、GPU種別（A/B/Cなど）を抽出し、以下のJSON形式で出力してください。
+
+入力: {nlp_text}
+
+出力例:
+{{
+  "startTime": "2025-06-09T14:00:00+09:00",
+  "endTime": "2025-06-09T18:00:00+09:00",
+  "gpuType": "A"
+}}
+"""
+    bedrock = boto3.client('bedrock-runtime')
+    body = {
+        "input": prompt,
+        "parameters": {
+            "max_tokens": 200,
+            "temperature": 0.2
+        }
+    }
+    response = bedrock.invoke_model(
+        modelId="us.amazon.nova-lite-v1:0",
+        body=json.dumps(body),
+        contentType="application/json"
+    )
+    result = json.loads(response['body'].read())
+    output = result['results'][0]['outputText']
+    match = re.search(r'\{.*\}', output, re.DOTALL)
+    if match:
+        return json.loads(match.group(0))
+    else:
+        raise Exception("パラメータ抽出に失敗しました")
+
 def lambda_handler(event, context):
     try:
         print("Received event:", json.dumps(event))
@@ -191,6 +228,33 @@ def lambda_handler(event, context):
                 "statusCode": 200,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
                 "body": json.dumps({"success": True})
+            }
+
+        elif action == 'reserve_gpu_from_nlp':
+            nlp_text = body['payload']['natural_language_request']
+            extracted = extract_params_from_nlp(nlp_text)
+            details = nlp_text
+            start_time = extracted['startTime']
+            end_time = extracted['endTime']
+            gpu_type = extracted['gpuType']
+            reservation_id = str(uuid.uuid4())
+            status = 'pending'
+            priority = 'normal'
+            item = {
+                'userId': user_id,
+                'reservationId': reservation_id,
+                'details': details,
+                'status': status,
+                'priority': priority,
+                'startTime': start_time,
+                'endTime': end_time,
+                'gpuType': gpu_type
+            }
+            reservations_table.put_item(Item=item)
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"success": True, "reservationId": reservation_id, "status": status, "priority": priority})
             }
 
         else:
