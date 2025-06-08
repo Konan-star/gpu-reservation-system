@@ -149,6 +149,20 @@ export class GpuReservationSystemStack extends cdk.Stack {
       resources: ['*']
     }));
 
+    // DynamoDBへのアクセス権限を追加
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'dynamodb:Query',
+        'dynamodb:PutItem',
+        'dynamodb:UpdateItem',
+        'dynamodb:GetItem'
+      ],
+      resources: [
+        reservationsTable.tableArn,
+        serversTable.tableArn
+      ]
+    }));
+
     // Lambda function
     const ApiProxyFunction = new lambda.Function(this, 'ApiProxyFunction', {
       runtime: lambda.Runtime.PYTHON_3_10,
@@ -452,8 +466,8 @@ export class GpuReservationSystemStack extends cdk.Stack {
       description: 'The ID of the Cognito User Pool Client',
     });
 
+    // DynamoDB（既存テーブル参照）
     const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
     const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
- 
   }
 }
