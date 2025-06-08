@@ -149,6 +149,10 @@ export class GpuReservationSystemStack extends cdk.Stack {
       resources: ['*']
     }));
 
+    // DynamoDB（既存テーブル参照）
+    const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
+    const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
+    
     // DynamoDBへのアクセス権限を追加
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: [
@@ -466,8 +470,5 @@ export class GpuReservationSystemStack extends cdk.Stack {
       description: 'The ID of the Cognito User Pool Client',
     });
 
-    // DynamoDB（既存テーブル参照）
-    const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
-    const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
   }
 }
