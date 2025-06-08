@@ -454,7 +454,6 @@ export class GpuReservationSystemStack extends cdk.Stack {
 
     const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
     const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
-    });
  
   }
 }
