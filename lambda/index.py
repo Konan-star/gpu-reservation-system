@@ -37,7 +37,6 @@ def ai_priority_decision(requester_details, existing_details):
     body = {
         "input": prompt,
         "parameters": {
-            "max_tokens": 50,
             "temperature": 0.2
         }
     }
@@ -74,7 +73,6 @@ def extract_params_from_nlp(nlp_text):
         "messages": [
             {"role": "user", "content": prompt}
         ],
-        "max_tokens": 200,
         "temperature": 0.2
     }
     response = bedrock.invoke_model(
