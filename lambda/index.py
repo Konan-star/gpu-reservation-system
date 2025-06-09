@@ -71,11 +71,11 @@ def extract_params_from_nlp(nlp_text):
 """
     bedrock = boto3.client('bedrock-runtime')
     body = {
-        "input": prompt,
-        "parameters": {
-            "max_tokens": 200,
-            "temperature": 0.2
-        }
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 200,
+        "temperature": 0.2
     }
     response = bedrock.invoke_model(
         modelId="us.amazon.nova-lite-v1:0",
