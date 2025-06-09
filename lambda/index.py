@@ -90,6 +90,7 @@ def extract_params_from_nlp(nlp_text):
 
     if match:
         json_str = match.group(1) if match.lastindex else match.group(0)
+        json_str = json_str.strip()
         print("抽出JSON:", json_str)
         try:
             return json.loads(json_str)
