@@ -85,6 +85,8 @@ function MainApplication({ signOut, user }) {
         }
       });
 
+      console.log("API response:", response.data);
+
       // Lambda Proxy Integrationの場合、bodyはJSON文字列なのでパースが必要
       const responseBody = typeof response.data.body === 'string'
         ? JSON.parse(response.data.body)
