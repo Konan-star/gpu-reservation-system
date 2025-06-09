@@ -171,6 +171,30 @@ function MainApplication({ signOut, user }) {
     }
   }, [view]);
 
+  const handleCancel = async (reservationId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const session = await Auth.currentSession();
+      const idToken = session.getIdToken().getJwtToken();
+      await axios.post(config.apiEndpoint, {
+        action: 'cancel',
+        reservationId,
+      }, {
+        headers: {
+          'Authorization': idToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      // 成功したら予約一覧を再取得
+      await fetchReservations();
+    } catch (err) {
+      setError('キャンセルに失敗しました: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -264,8 +288,12 @@ function MainApplication({ signOut, user }) {
                 {reservations.map(reservation => (
                   <li key={reservation.reservationId || reservation.id} className={`reservation-item status-${reservation.status}`}>
                     <div className="reservation-details">{reservation.details}</div>
+                    <div>開始: {reservation.startTime}</div>
+                    <div>終了: {reservation.endTime}</div>
+                    <div>GPU: {reservation.gpuType}</div>
                     <div className="reservation-status">ステータス: {reservation.status}</div>
-                    {reservation.status === 'need_confirm' && (
+                    {/* キャンセルボタン（pendingやneed_confirmのときのみ表示） */}
+                    {(reservation.status === 'pending' || reservation.status === 'need_confirm') && (
                       <div className="confirm-actions">
                         <button
                           onClick={() => handleConfirmReject(reservation.reservationId || reservation.id, 'accept')}
