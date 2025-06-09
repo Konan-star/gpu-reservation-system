@@ -80,10 +80,24 @@ def extract_params_from_nlp(nlp_text):
     result = json.loads(response['body'].read())
     print("Bedrock response:", result)
     output = result['output']['message']['content'][0]['text']
-    match = re.search(r'\{.*\}', output, re.DOTALL)
+    print("LLM出力:", output)
+
+    # コードブロック内のJSONだけを抽出
+    match = re.search(r'```json\\s*({.*?})\\s*```', output, re.DOTALL)
+    if not match:
+        # fallback: 最初に出てくる{}を抽出
+        match = re.search(r'\{.*\}', output, re.DOTALL)
+
     if match:
-        return json.loads(match.group(0))
+        json_str = match.group(1) if match.lastindex else match.group(0)
+        print("抽出JSON:", json_str)
+        try:
+            return json.loads(json_str)
+        except Exception as e:
+            print("JSONパースエラー:", e)
+            raise
     else:
+        print("JSON部分が見つかりません")
         raise Exception("パラメータ抽出に失敗しました")
 
 def lambda_handler(event, context):
