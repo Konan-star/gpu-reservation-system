@@ -35,7 +35,9 @@ def ai_priority_decision(requester_details, existing_details):
     """
     bedrock = boto3.client('bedrock-runtime')
     body = {
-        "input": prompt
+        "messages": [
+            {"role": "user", "content": [{"text": prompt}]}
+        ]
     }
     response = bedrock.invoke_model(
         modelId=MODEL_ID,
