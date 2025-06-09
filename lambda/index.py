@@ -35,10 +35,7 @@ def ai_priority_decision(requester_details, existing_details):
     """
     bedrock = boto3.client('bedrock-runtime')
     body = {
-        "input": prompt,
-        "parameters": {
-            "temperature": 0.2
-        }
+        "input": prompt
     }
     response = bedrock.invoke_model(
         modelId=MODEL_ID,
@@ -72,8 +69,7 @@ def extract_params_from_nlp(nlp_text):
     body = {
         "messages": [
             {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
+        ]
     }
     response = bedrock.invoke_model(
         modelId="us.amazon.nova-lite-v1:0",
