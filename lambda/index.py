@@ -183,7 +183,15 @@ def lambda_handler(event, context):
             return {
                 "statusCode": 200,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"success": True, "reservationId": reservation_id, "status": status, "priority": priority})
+                "body": json.dumps({
+                    "success": True,
+                    "reservationId": reservation_id,
+                    "status": status,
+                    "priority": priority,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "gpuType": gpu_type
+                })
             }
 
         # 予約一覧取得
@@ -268,7 +276,15 @@ def lambda_handler(event, context):
             return {
                 "statusCode": 200,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"success": True, "reservationId": reservation_id, "status": status, "priority": priority})
+                "body": json.dumps({
+                    "success": True,
+                    "reservationId": reservation_id,
+                    "status": status,
+                    "priority": priority,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "gpuType": gpu_type
+                })
             }
 
         else:
