@@ -140,6 +140,10 @@ export class GpuReservationSystemStack extends cdk.Stack {
       ]
     });
 
+    // DynamoDB（既存テーブル参照）
+    const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
+    const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
+
     // Bedrockへのアクセス権限を追加
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: [
@@ -149,17 +153,14 @@ export class GpuReservationSystemStack extends cdk.Stack {
       resources: ['*']
     }));
 
-    // DynamoDB（既存テーブル参照）
-    const reservationsTable = dynamodb.Table.fromTableName(this, 'ReservationsTable', 'GpuReservations');
-    const serversTable = dynamodb.Table.fromTableName(this, 'ServersConfigTable', 'GpuServerConfigs');
-    
     // DynamoDBへのアクセス権限を追加
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: [
         'dynamodb:Query',
         'dynamodb:PutItem',
         'dynamodb:UpdateItem',
-        'dynamodb:GetItem'
+        'dynamodb:GetItem',
+        'dynamodb:Scan'
       ],
       resources: [
         reservationsTable.tableArn,
