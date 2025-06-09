@@ -44,7 +44,7 @@ def ai_priority_decision(requester_details, existing_details):
     )
     result = json.loads(response['body'].read())
     print("Bedrock response:", result)
-    answer = result['results'][0]['outputText']
+    answer = result['output']['message']['content'][0]['text']
     if '2' in answer:
         return 'new'
     else:
@@ -79,7 +79,7 @@ def extract_params_from_nlp(nlp_text):
     )
     result = json.loads(response['body'].read())
     print("Bedrock response:", result)
-    output = result['results'][0]['outputText']
+    output = result['output']['message']['content'][0]['text']
     match = re.search(r'\{.*\}', output, re.DOTALL)
     if match:
         return json.loads(match.group(0))
