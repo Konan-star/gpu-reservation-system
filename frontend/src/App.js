@@ -85,8 +85,17 @@ function MainApplication({ signOut, user }) {
         }
       });
 
-      if (response.data.success) {
-        setMessages(prev => [...prev, { role: 'assistant', content: response.data.response }]);
+      // Lambda Proxy Integrationの場合、bodyはJSON文字列なのでパースが必要
+      const responseBody = typeof response.data.body === 'string'
+        ? JSON.parse(response.data.body)
+        : response.data.body;
+
+      if (responseBody.success) {
+        // 予約内容をassistantメッセージとして表示
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `予約完了: ${responseBody.startTime} 〜 ${responseBody.endTime} / GPU: ${responseBody.gpuType}`
+        }]);
       } else {
         setError('応答の取得に失敗しました');
       }
