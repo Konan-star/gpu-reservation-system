@@ -68,7 +68,7 @@ def extract_params_from_nlp(nlp_text):
     bedrock = boto3.client('bedrock-runtime')
     body = {
         "messages": [
-            {"role": "user", "content": [prompt]}
+            {"role": "user", "content": [{"type": "text", "text": prompt}]}
         ]
     }
     response = bedrock.invoke_model(
