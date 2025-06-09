@@ -55,7 +55,7 @@ def extract_params_from_nlp(nlp_text):
     Bedrock Nova Liteで自然言語から予約パラメータを抽出
     """
     prompt = f"""
-次の日本語の予約リクエストから、予約開始時刻（ISO8601）、終了時刻（ISO8601）、GPU種別（A/B/Cなど）を抽出し、以下のJSON形式で出力してください。
+次の日本語の予約リクエストから、予約開始時刻（ISO8601）、終了時刻（ISO8601）、GPU種別（A/B/Cなど）を抽出し、JSONのみ出力してください。説明やコードブロック（```）は不要です。
 
 入力: {nlp_text}
 
@@ -93,6 +93,9 @@ def extract_params_from_nlp(nlp_text):
         json_str = json_str.strip()
         print("抽出JSON:", json_str)
         try:
+            # 余計な改行やインデントを除去
+            json_str = re.sub(r'\n', '', json_str)
+            json_str = re.sub(r'\s{2,}', ' ', json_str)
             return json.loads(json_str)
         except Exception as e:
             print("JSONパースエラー:", e)
