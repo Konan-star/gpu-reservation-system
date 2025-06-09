@@ -260,8 +260,39 @@ def lambda_handler(event, context):
             end_time = extracted['endTime']
             gpu_type = extracted['gpuType']
             reservation_id = str(uuid.uuid4())
+
+            # --- ここからreserveと同じ重複チェック・AI判定ロジックを追加 ---
+            resp = reservations_table.scan(
+                FilterExpression=boto3.dynamodb.conditions.Attr('gpuType').eq(gpu_type) &
+                                 boto3.dynamodb.conditions.Attr('status').is_in(['pending', 'need_confirm']) &
+                                 (
+                                     (boto3.dynamodb.conditions.Attr('startTime').between(start_time, end_time)) |
+                                     (boto3.dynamodb.conditions.Attr('endTime').between(start_time, end_time))
+                                 )
+            )
+            conflicts = resp.get('Items', [])
+
             status = 'pending'
             priority = 'normal'
+            if conflicts:
+                existing = conflicts[0]
+                ai_result = ai_priority_decision(details, existing['details'])
+                if ai_result == 'new':
+                    # 新規予約を優先
+                    reservations_table.update_item(
+                        Key={'userId': existing['userId'], 'reservationId': existing['reservationId']},
+                        UpdateExpression='SET #s = :n',
+                        ExpressionAttributeNames={'#s': 'status'},
+                        ExpressionAttributeValues={':n': 'need_confirm'}
+                    )
+                    status = 'pending'
+                    priority = 'high'
+                else:
+                    # 既存予約を優先
+                    status = 'need_confirm'
+                    priority = 'low'
+            # --- ここまでreserveと同じ ---
+
             item = {
                 'userId': user_id,
                 'reservationId': reservation_id,
