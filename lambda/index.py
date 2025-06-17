@@ -213,13 +213,36 @@ def lambda_handler(event, context):
             reservation_id = body.get('reservationId')
             if not reservation_id:
                 raise Exception('reservationIdが必要です')
-            # statusをcanceledに更新
+            # 1. statusをcanceledに更新
             reservations_table.update_item(
                 Key={'userId': user_id, 'reservationId': reservation_id},
                 UpdateExpression='SET #s = :c',
                 ExpressionAttributeNames={'#s': 'status'},
                 ExpressionAttributeValues={':c': 'canceled'}
             )
+            # 2. 同じ時間・同じGPU・need_confirmの予約を検索
+            canceled_item = reservations_table.get_item(Key={'userId': user_id, 'reservationId': reservation_id})['Item']
+            start_time = canceled_item['startTime']
+            end_time = canceled_item['endTime']
+            gpu_type = canceled_item['gpuType']
+            resp = reservations_table.scan(
+                FilterExpression=boto3.dynamodb.conditions.Attr('gpuType').eq(gpu_type) &
+                                 boto3.dynamodb.conditions.Attr('status').eq('need_confirm') &
+                                 (
+                                     (boto3.dynamodb.conditions.Attr('startTime').between(start_time, end_time)) |
+                                     (boto3.dynamodb.conditions.Attr('endTime').between(start_time, end_time))
+                                 )
+            )
+            candidates = resp.get('Items', [])
+            if candidates:
+                # ここでは最初の候補をpendingに昇格（必要に応じて優先度判定も可）
+                next_item = candidates[0]
+                reservations_table.update_item(
+                    Key={'userId': next_item['userId'], 'reservationId': next_item['reservationId']},
+                    UpdateExpression='SET #s = :p',
+                    ExpressionAttributeNames={'#s': 'status'},
+                    ExpressionAttributeValues={':p': 'pending'}
+                )
             return {
                 "statusCode": 200,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
