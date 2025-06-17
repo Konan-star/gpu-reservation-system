@@ -219,7 +219,7 @@ def lambda_handler(event, context):
                 Key={'userId': user_id, 'reservationId': reservation_id},
                 UpdateExpression='SET #s = :c',
                 ExpressionAttributeNames={'#s': 'status'},
-                ExpressionAttributeValues={':c': 'canceled'}
+                ExpressionAttributeValues={':c': 'canceled'},
                 ReturnValues='ALL_OLD'
             )
             canceled_item = response.get('Attributes')
