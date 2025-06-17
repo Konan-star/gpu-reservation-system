@@ -292,8 +292,18 @@ function MainApplication({ signOut, user }) {
                     <div>終了: {reservation.endTime}</div>
                     <div>GPU: {reservation.gpuType}</div>
                     <div className="reservation-status">ステータス: {reservation.status}</div>
-                    {/* キャンセルボタン（pendingやneed_confirmのときのみ表示） */}
-                    {(reservation.status === 'pending' || reservation.status === 'need_confirm') && (
+                    {/* ステータスに応じて適切なボタンを表示 */}
+                    {reservation.status === 'pending' && (
+                      <div className="reservation-actions">
+                        <button
+                          onClick={() => handleCancel(reservation.reservationId || reservation.id)}
+                          disabled={loading}
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    )}
+                    {reservation.status === 'need_confirm' && (
                       <div className="confirm-actions">
                         <button
                           onClick={() => handleConfirmReject(reservation.reservationId || reservation.id, 'accept')}
