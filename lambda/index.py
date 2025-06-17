@@ -215,7 +215,7 @@ def lambda_handler(event, context):
                 raise Exception('reservationIdが必要です')
             # 1. statusをcanceledに更新
             # ReturnValues='ALL_OLD'で更新前のアイテム情報を取得
-            reservations_table.update_item(
+            response = reservations_table.update_item(
                 Key={'userId': user_id, 'reservationId': reservation_id},
                 UpdateExpression='SET #s = :c',
                 ExpressionAttributeNames={'#s': 'status'},
