@@ -214,35 +214,52 @@ def lambda_handler(event, context):
             if not reservation_id:
                 raise Exception('reservationIdが必要です')
             # 1. statusをcanceledに更新
+            # ReturnValues='ALL_OLD'で更新前のアイテム情報を取得
             reservations_table.update_item(
                 Key={'userId': user_id, 'reservationId': reservation_id},
                 UpdateExpression='SET #s = :c',
                 ExpressionAttributeNames={'#s': 'status'},
                 ExpressionAttributeValues={':c': 'canceled'}
+                ReturnValues='ALL_OLD'
             )
-            # 2. 同じ時間・同じGPU・need_confirmの予約を検索
-            canceled_item = reservations_table.get_item(Key={'userId': user_id, 'reservationId': reservation_id})['Item']
-            start_time = canceled_item['startTime']
-            end_time = canceled_item['endTime']
+            canceled_item = response.get('Attributes')
+            if not canceled_item:
+                raise Exception('キャンセル対象の予約情報が取得できませんでした。')
+
+            # 2. 【scanを使用】テーブル全体をスキャンして、同じGPUでneed_confirm状態の候補を検索
             gpu_type = canceled_item['gpuType']
             resp = reservations_table.scan(
                 FilterExpression=boto3.dynamodb.conditions.Attr('gpuType').eq(gpu_type) &
-                                 boto3.dynamodb.conditions.Attr('status').eq('need_confirm') &
-                                 (
-                                     (boto3.dynamodb.conditions.Attr('startTime').between(start_time, end_time)) |
-                                     (boto3.dynamodb.conditions.Attr('endTime').between(start_time, end_time))
-                                 )
+                                 boto3.dynamodb.conditions.Attr('status').eq('need_confirm')
             )
+    
             candidates = resp.get('Items', [])
-            if candidates:
-                # ここでは最初の候補をpendingに昇格（必要に応じて優先度判定も可）
-                next_item = candidates[0]
+            if not candidates:
+                # 繰り上げ対象がいない場合はここで正常終了
+                return {"statusCode": 200, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps({"success": True, "message": "Reservation canceled. No candidates to promote."})}
+            # 3. キャンセルされた時間枠と重複する候補を探す
+            start_time = canceled_item['startTime']
+            end_time = canceled_item['endTime']
+    
+            next_item_to_promote = None
+            for candidate in candidates:
+                # 候補の時間枠が、キャンセルされた時間枠と少しでも重なっているかチェック
+                if (candidate['startTime'] < end_time and candidate['endTime'] > start_time):
+                    # 優先度や待機時間など、他の要素でソートすることも可能
+                    # ここでは簡単のため、最初の候補を昇格させる
+                    next_item_to_promote = candidate
+                    break
+
+            # 4. 昇格対象がいれば、ステータスを"pending"に更新
+            if next_item_to_promote:
+                print(f"Promoting user {next_item_to_promote['userId']} for reservation {next_item_to_promote['reservationId']}")
                 reservations_table.update_item(
-                    Key={'userId': next_item['userId'], 'reservationId': next_item['reservationId']},
-                    UpdateExpression='SET #s = :p',
-                    ExpressionAttributeNames={'#s': 'status'},
-                    ExpressionAttributeValues={':p': 'pending'}
+                    Key={'userId': next_item_to_promote['userId'], 'reservationId': next_item_to_promote['reservationId']},
+                    UpdateExpression='SET #s = :p, #pri = :pr',
+                    ExpressionAttributeNames={'#s': 'status', '#pri': 'priority'},
+                    ExpressionAttributeValues={':p': 'pending', ':pr': 'high'}
                 )
+
             return {
                 "statusCode": 200,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
